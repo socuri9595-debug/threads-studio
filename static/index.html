@@ -199,10 +199,16 @@ th{color:var(--mute);font-weight:600;font-size:12px}
 
 <!-- ───────── 트렌드 ───────── -->
 <section id="trends">
+<div class="card" style="margin-bottom:14px">
+  <h3>쇼핑 인기 검색어 (네이버 데이터랩 쇼핑인사이트 · 최근 7일)</h3>
+  <p class="hint">요즘 사람들이 사려고 검색하는 것. 카테고리를 누르면 TOP 20이 떠요. 키워드를 누르면 제휴 탭의 상품명·소재로 들어가요.</p>
+  <div class="chips" id="t-shop-cats"></div>
+  <div id="t-shop-out" style="margin-top:12px"></div>
+</div>
 <div class="grid">
   <div>
     <div class="card">
-      <h3>Google 트렌드 (한국, 실시간)</h3>
+      <h3>Google 트렌드 (한국, 실시간 — 뉴스·이슈 위주)</h3>
       <button class="sec" id="t-google">불러오기</button>
       <div id="t-google-out" class="chips"></div>
       <p class="hint">키워드를 누르면 원고 작성 탭의 소재로 들어가요.</p>
@@ -348,6 +354,12 @@ $('#b-search').onclick=async()=>{const q=$('#b-q').value.trim();if(!q)return;$('
 window.saveFound=async d=>{await api('/api/scraps',{method:'POST',body:JSON.stringify({author:'@'+(d.username||''),text:d.text||'',likes:d.like_count||0,replies:d.reply_count||0,reposts:d.repost_count||0,url:d.permalink||''})});toast('스크랩됐어요');loadScraps()};
 $('#b-extract').onclick=async()=>{const ids=$$('#b-list input:checked').map(i=>i.value);if(!ids.length)return toast('글을 선택하세요');$('#b-extract').disabled=true;try{const p=await api('/api/scraps/extract',{method:'POST',body:JSON.stringify({scrap_ids:ids,name:$('#b-pname').value.trim()})});await api('/api/personas',{method:'POST',body:JSON.stringify({name:p.name,prompt:p.prompt})});toast('페르소나가 추가됐어요: '+p.name);loadPersonas();}catch(e){toast(e.message)}$('#b-extract').disabled=false;};
 
+// shopping trends
+async function loadShopCats(){const cats=await api('/api/trends/shopping/categories');$('#t-shop-cats').innerHTML=cats.map(c=>`<span class="chip" data-cid="${c.cid}" onclick="loadShop('${c.cid}',this)">${esc(c.name)}</span>`).join('');}
+let shopPage=1;
+window.loadShop=async(cid,el,page=1)=>{$$('#t-shop-cats .chip').forEach(x=>x.style.borderColor='transparent');if(el)el.style.borderColor='var(--accent2)';window._cid=cid;shopPage=page;$('#t-shop-out').innerHTML='<span class="hint">불러오는 중…</span>';const r=await api(`/api/trends/shopping?cid=${cid}&page=${page}`);if(r.error){$('#t-shop-out').innerHTML=`<span class="hint">${esc(r.error)}</span>`;return}$('#t-shop-out').innerHTML=`<div class="hint" style="margin-bottom:8px">${esc(r.category)} · ${esc(r.period)}</div><div class="chips">${r.items.map(it=>`<span class="chip" onclick="useProduct('${esc(it.keyword).replace(/'/g,'’')}')"><small>${it.rank}</small> ${esc(it.keyword)}</span>`).join('')}</div><div class="actions"><button class="sec" onclick="loadShop('${cid}',null,${page+1})">다음 20개</button>${page>1?`<button class="sec" onclick="loadShop('${cid}',null,${page-1})">이전</button>`:''}</div>`;};
+window.useProduct=k=>{$('#a-title').value=k;$('#a-q').value=k;if(!$('#a-keyword').value)$('#a-keyword').value=k+' 필요해지는 순간';$$('#nav button')[1].click();toast('제휴 탭에 넣었어요: '+k)};
+loadShopCats();
 // trends
 $('#t-google').onclick=async()=>{$('#t-google-out').innerHTML='<span class="hint">불러오는 중…</span>';const r=await api('/api/trends/google');if(r.error){$('#t-google-out').innerHTML=`<span class="hint">${esc(r.error)}</span>`;return}const chips=r.items.map(it=>`<span class="chip" title="${esc(it.headline)}" onclick="useKeyword('${esc(it.keyword).replace(/'/g,'’')}')">${esc(it.keyword)}<small>${esc(it.traffic)}</small></span>`).join('');$('#t-google-out').innerHTML=chips||'<span class="hint">없음</span>';$('#w-trend-chips').innerHTML=chips;};
 window.useKeyword=k=>{$('#w-keyword').value=k;$$('#nav button')[0].click();toast('소재로 넣었어요: '+k)};

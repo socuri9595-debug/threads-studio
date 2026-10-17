@@ -370,6 +370,41 @@ def trends_naver(keywords: str):
     return r.json()
 
 
+SHOPPING_CATEGORIES = [
+    ("50000000", "패션의류"), ("50000001", "패션잡화"), ("50000002", "화장품/미용"), ("50000003", "디지털/가전"),
+    ("50000004", "가구/인테리어"), ("50000005", "출산/육아"), ("50000006", "식품"), ("50000007", "스포츠/레저"),
+    ("50000008", "생활/건강"), ("50000009", "여가/생활편의"), ("50005542", "도서"),
+]
+
+
+@app.get("/api/trends/shopping/categories")
+def shopping_categories():
+    return [{"cid": c, "name": n} for c, n in SHOPPING_CATEGORIES]
+
+
+@app.get("/api/trends/shopping")
+def trends_shopping(cid: str = "50000003", days: int = 7, count: int = 20, page: int = 1):
+    """네이버 데이터랩 쇼핑인사이트 — 카테고리별 인기 검색어 (키 불필요, 웹 페이지가 쓰는 데이터)."""
+    end = now_kst().date() - timedelta(days=1)
+    start = end - timedelta(days=days)
+    try:
+        r = requests.post(
+            "https://datalab.naver.com/shoppingInsight/getCategoryKeywordRank.naver",
+            data={"cid": cid, "timeUnit": "date", "startDate": start.isoformat(), "endDate": end.isoformat(),
+                  "age": "", "gender": "", "device": "", "page": page, "count": count},
+            headers={"User-Agent": "Mozilla/5.0", "Referer": "https://datalab.naver.com/shoppingInsight/sCategory.naver",
+                     "X-Requested-With": "XMLHttpRequest", "Origin": "https://datalab.naver.com"},
+            timeout=20,
+        )
+        r.raise_for_status()
+        data = r.json()
+        ranks = (data.get("ranks") or (data[0].get("ranks") if isinstance(data, list) and data else [])) or []
+        name = dict(SHOPPING_CATEGORIES).get(cid, cid)
+        return {"category": name, "period": f"{start}~{end}", "items": [{"rank": x.get("rank"), "keyword": x.get("keyword")} for x in ranks]}
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"items": [], "error": f"쇼핑 인기검색어를 불러오지 못했어요: {e}"}, status_code=200)
+
+
 # ───────────────────────── benchmark (scraps) ─────────────────────────
 def reaction_score(sc: dict) -> int:
     return int(sc.get("likes", 0) * 1 + sc.get("replies", 0) * 3 + sc.get("reposts", 0) * 2)

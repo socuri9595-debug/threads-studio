@@ -135,8 +135,21 @@ th{color:var(--mute);font-weight:600;font-size:12px}
       <label>이 상품이 필요해지는 상황 (소재)</label>
       <input id="a-keyword" placeholder="예: 야근하다 눈 뻑뻑할 때">
       <label>페르소나</label><select id="a-persona"></select>
-      <label>직접 써본 경험 (선택)</label>
-      <textarea id="a-exp" placeholder="직접 써봤다면 사실만 적어요. 비워두면 '이런 게 있더라' 소개형으로 씁니다. 안 써본 걸 써본 것처럼 쓰지 않아요."></textarea>
+      <label>글 종류</label>
+      <div class="seg" id="a-kind">
+        <button data-v="intro" class="on">소개형</button>
+        <button data-v="reviews">후기 종합</button>
+        <button data-v="exp">직접 써봄</button>
+      </div>
+      <div id="a-kind-intro" class="hint" style="margin-top:8px">안 써본 상품을 "이런 게 있더라" 톤으로 소개해요. 가장 안전한 기본값.</div>
+      <div id="a-kind-reviews" style="display:none">
+        <label>구매 후기 붙여넣기</label>
+        <textarea id="a-reviews" placeholder="쿠팡 상품 페이지의 후기 몇 개를 복사해서 붙여넣으세요. '후기 보니까 ~래' 톤으로 장점·단점을 같이 종합해요. 내가 써본 것처럼 바꾸지 않아요."></textarea>
+      </div>
+      <div id="a-kind-exp" style="display:none">
+        <label>직접 써본 경험</label>
+        <textarea id="a-exp" placeholder="실제로 써본 경우에만. 사실만 적으면 그 범위 안에서 체험 톤으로 써요."></textarea>
+      </div>
       <label>개수</label>
       <select id="a-count"><option>1</option><option selected>3</option></select>
       <div style="margin-top:14px"><button class="pri" id="a-go">제휴 글 생성</button></div>
@@ -270,7 +283,7 @@ th{color:var(--mute);font-weight:600;font-size:12px}
     <div class="card">
       <h3>이 프로그램이 지키는 것</h3>
       <ul style="margin:0;padding-left:18px;line-height:1.9">
-        <li>안 써본 상품을 써본 것처럼 쓰지 않아요. '직접 써본 경험'을 적은 경우에만 체험 톤으로 써요.</li>
+        <li>안 써본 상품을 써본 것처럼 쓰지 않아요. 남의 후기는 "후기 보니까 ~래"로 출처를 밝혀 종합하고, '직접 써봄'을 고른 경우에만 체험 톤으로 써요.</li>
         <li>제휴 글은 공정위 표시 문구가 본문 맨 앞에 들어가요.</li>
         <li>글 본문에 링크를 넣지 않고 첫 답글에 달아요. (본문 링크는 도달이 줄어요)</li>
         <li>하루에 많이 올리지 마세요. 새 계정은 하루 2~3개부터. 예약 시간은 분 단위를 흩어두세요.</li>
@@ -316,10 +329,12 @@ window.copyText=btn=>{navigator.clipboard.writeText(postPayload(btn,false).text)
 // write
 $('#w-go').onclick=async()=>{const kw=$('#w-keyword').value.trim();if(!kw)return toast('소재를 적어주세요');$('#w-go').disabled=true;$('#w-out').innerHTML='<div class="empty">쓰는 중…</div>';try{const r=await api('/api/generate',{method:'POST',body:JSON.stringify({keyword:kw,persona_id:$('#w-persona').value,mode:wMode,count:+$('#w-count').value,extra:$('#w-extra').value})});renderPosts($('#w-out'),r.posts,'', '일상');}catch(e){$('#w-out').innerHTML=`<div class="empty">${esc(e.message)}</div>`}$('#w-go').disabled=false;};
 
+// affiliate kind seg
+let aKind='intro';$$('#a-kind button').forEach(b=>b.onclick=()=>{$$('#a-kind button').forEach(x=>x.classList.remove('on'));b.classList.add('on');aKind=b.dataset.v;['intro','reviews','exp'].forEach(k=>$('#a-kind-'+k).style.display=k===aKind?'':'none');});
 // affiliate
 $('#a-search').onclick=async()=>{const q=$('#a-q').value.trim();if(!q)return;$('#a-results').innerHTML='<span class="hint">검색 중…</span>';try{const items=await api('/api/coupang/search?keyword='+encodeURIComponent(q));$('#a-results').innerHTML=items.map(it=>`<span class="chip" onclick='pickProduct(${JSON.stringify(it).replace(/'/g,"&#39;")})'>${esc(it.title).slice(0,40)}<small>${esc(String(it.price))}원</small></span>`).join('')||'<span class="hint">결과 없음</span>'}catch(e){$('#a-results').innerHTML=`<span class="hint">${esc(e.message)}</span>`}};
 window.pickProduct=it=>{$('#a-title').value=it.title||'';$('#a-price').value=it.price?Number(it.price).toLocaleString()+'원':'';$('#a-url').value=it.url||'';$('#a-image').value=it.image||'';toast('상품 선택됨')};
-$('#a-go').onclick=async()=>{const kw=$('#a-keyword').value.trim(),url=$('#a-url').value.trim();if(!kw)return toast('상황(소재)을 적어주세요');if(!url)return toast('파트너스 링크를 넣어주세요');$('#a-go').disabled=true;$('#a-out').innerHTML='<div class="empty">쓰는 중…</div>';try{const r=await api('/api/generate',{method:'POST',body:JSON.stringify({keyword:kw,persona_id:$('#a-persona').value,mode:'basic',count:+$('#a-count').value,affiliate:true,experience:$('#a-exp').value,product:{title:$('#a-title').value,price:$('#a-price').value,url,image:$('#a-image').value}})});renderPosts($('#a-out'),r.posts,r.image_url,'제휴');}catch(e){$('#a-out').innerHTML=`<div class="empty">${esc(e.message)}</div>`}$('#a-go').disabled=false;};
+$('#a-go').onclick=async()=>{const kw=$('#a-keyword').value.trim(),url=$('#a-url').value.trim();if(!kw)return toast('상황(소재)을 적어주세요');if(!url)return toast('파트너스 링크를 넣어주세요');$('#a-go').disabled=true;$('#a-out').innerHTML='<div class="empty">쓰는 중…</div>';try{const r=await api('/api/generate',{method:'POST',body:JSON.stringify({keyword:kw,persona_id:$('#a-persona').value,mode:'basic',count:+$('#a-count').value,affiliate:true,experience:aKind==='exp'?$('#a-exp').value:'',reviews:aKind==='reviews'?$('#a-reviews').value:'',product:{title:$('#a-title').value,price:$('#a-price').value,url,image:$('#a-image').value}})});renderPosts($('#a-out'),r.posts,r.image_url,'제휴');}catch(e){$('#a-out').innerHTML=`<div class="empty">${esc(e.message)}</div>`}$('#a-go').disabled=false;};
 
 // bench
 async function loadScraps(){const items=await api('/api/scraps');$('#b-count').textContent=items.length?`(${items.length})`:'';$('#b-list').innerHTML=items.length?items.map(it=>`<div class="scrap"><input type="checkbox" value="${it.id}"><div style="flex:1"><div class="t">${esc(it.text)}</div><div class="s">${esc(it.author||'')} · 좋아요 ${it.likes} 답글 ${it.replies} 리포스트 ${it.reposts} · <a href="#" onclick="delScrap('${it.id}');return false" style="color:var(--mute)">삭제</a></div></div><div class="score">${it.score}pt</div></div>`).join(''):'<div class="empty">아직 스크랩이 없어요.</div>';}

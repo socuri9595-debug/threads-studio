@@ -154,6 +154,7 @@ class GenerateReq(BaseModel):
     product: Optional[Product] = None
     affiliate: bool = False
     experience: str = ""  # 직접 써본 경험 메모 (비어 있으면 소개형으로만 씀)
+    reviews: str = ""  # 쿠팡 등에서 복사한 실제 구매 후기 (종합해서 '후기에 따르면' 톤으로 씀)
     extra: str = ""  # 추가 지시
 
 
@@ -484,6 +485,11 @@ def generate(req: GenerateReq):
         product_block = f"\n소개할 상품: {p.title} / 가격: {p.price or '미상'}\n"
         if req.experience.strip():
             product_block += f"사용자가 직접 써본 경험 메모(이것만 사실로 쓸 수 있음, 없는 내용 추가 금지): {req.experience.strip()}\n"
+        elif req.reviews.strip():
+            product_block += ("아래는 다른 구매자들의 실제 후기다. 사용자는 이 상품을 직접 써보지 않았다. "
+                              "후기를 종합해서 '후기 보니까 ~래', '~라는 평이 많더라', '~는 불만도 있음'처럼 반드시 후기임을 밝히는 톤으로 쓴다. "
+                              "1인칭 체험('써봤는데', '쓰고 나서')으로 바꾸지 않는다. 장점 하나와 아쉬운 점 하나를 같이 말한다. 후기 숫자·개수를 지어내지 않는다.\n"
+                              f"후기:\n{req.reviews.strip()[:3000]}\n")
         else:
             product_block += "사용자는 이 상품을 직접 써보지 않았다. 써본 것처럼 쓰지 말고, '이런 게 있더라/~라고 함' 식의 발견·소개 톤으로만 쓴다. 상품의 쓸모를 사람의 상황(언제 필요해지는지)과 연결해서 말한다.\n"
         product_block += "글 본문에 링크·가격 홍보 문구('지금 구매', '쟁여놔야')를 넣지 않는다. 링크는 별도로 붙는다.\n"

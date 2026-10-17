@@ -5,6 +5,9 @@ if [ ! -d .venv ]; then
   python3 -m venv .venv || { echo "python3가 필요해요. https://www.python.org/downloads/ 에서 설치 후 다시 실행"; exit 1; }
   ./.venv/bin/pip install -q -r requirements.txt
 fi
+# 이미 켜져 있는 예전 서버가 있으면 먼저 끔
+lsof -ti tcp:8787 2>/dev/null | xargs kill -9 2>/dev/null
+sleep 0.5
 ./.venv/bin/python app.py &
 PID=$!
 sleep 1.5

@@ -13,6 +13,9 @@ if [ ! -d .venv ]; then
   echo "  처음 실행이라 필요한 것들을 설치해요 (30초쯤)..."
   python3 -m venv .venv && ./.venv/bin/pip install -q -r requirements.txt || { echo "  설치 실패. 인터넷 연결을 확인하고 다시 시도해 주세요."; read -n 1 -s -r; exit 1; }
 fi
+# 이미 켜져 있는 예전 서버가 있으면 먼저 끔
+lsof -ti tcp:8787 2>/dev/null | xargs kill -9 2>/dev/null
+sleep 0.5
 ./.venv/bin/python app.py &
 PID=$!
 sleep 1.5

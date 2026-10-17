@@ -502,6 +502,37 @@ def coupang_search(keyword: str, limit: int = 10):
              "image": d.get("productImage"), "rocket": d.get("isRocket")} for d in data]
 
 
+@app.get("/api/coupang/meta")
+def coupang_meta(url: str):
+    """파트너스 링크(link.coupang.com/a/...)를 따라가서 상품명·대표 이미지·가격을 읽어온다. 키 불필요."""
+    ua = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) "
+          "Chrome/124.0 Safari/537.36")
+    try:
+        r = requests.get(url, headers={"User-Agent": ua, "Accept-Language": "ko-KR,ko;q=0.9"}, timeout=20, allow_redirects=True)
+        html = r.text
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"링크를 열지 못했어요: {e}")
+
+    def meta(prop: str) -> str:
+        m = re.search(r'<meta[^>]+(?:property|name)=["\']%s["\'][^>]+content=["\']([^"\']+)' % re.escape(prop), html, re.I)
+        if not m:
+            m = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']%s["\']' % re.escape(prop), html, re.I)
+        return (m.group(1) if m else "").strip()
+
+    title = meta("og:title") or meta("twitter:title")
+    title = re.sub(r"\s*[-|]\s*쿠팡!?\s*$", "", title).strip()
+    image = meta("og:image") or meta("twitter:image")
+    if image.startswith("//"):
+        image = "https:" + image
+    price = ""
+    m = re.search(r'"(?:salePrice|finalPrice|price)"\s*:\s*"?([0-9,]{3,})', html)
+    if m:
+        price = m.group(1) + "원"
+    if not title and not image:
+        raise HTTPException(502, "상품 정보를 못 읽었어요. 쿠팡이 자동 접근을 막았을 수 있어요. 상품명과 이미지 주소를 직접 넣어주세요.")
+    return {"title": title, "image": image, "price": price, "final_url": r.url}
+
+
 class DeeplinkReq(BaseModel):
     urls: list[str]
 

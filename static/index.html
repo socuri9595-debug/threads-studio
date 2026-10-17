@@ -133,7 +133,8 @@ th{color:var(--mute);font-weight:600;font-size:12px}
     <div class="card" style="margin-top:14px">
       <h3>글 만들기</h3>
       <label>이 상품이 필요해지는 상황 (소재)</label>
-      <input id="a-keyword" placeholder="예: 야근하다 눈 뻑뻑할 때">
+      <div class="row"><input id="a-keyword" placeholder="예: 야근하다 눈 뻑뻑할 때"><button class="sec" id="a-roll" style="flex:0 0 auto" title="안 쓴 제품 + 상황 앵글을 뽑아요">🎲 제품·상황 뽑기</button></div>
+      <div class="hint" id="a-roll-info"></div>
       <label>페르소나</label><select id="a-persona"></select>
       <label>글 종류</label>
       <div class="seg" id="a-kind">
@@ -329,12 +330,15 @@ window.copyText=btn=>{navigator.clipboard.writeText(postPayload(btn,false).text)
 // write
 $('#w-go').onclick=async()=>{const kw=$('#w-keyword').value.trim();if(!kw)return toast('소재를 적어주세요');$('#w-go').disabled=true;$('#w-out').innerHTML='<div class="empty">쓰는 중…</div>';try{const r=await api('/api/generate',{method:'POST',body:JSON.stringify({keyword:kw,persona_id:$('#w-persona').value,mode:wMode,count:+$('#w-count').value,extra:$('#w-extra').value})});renderPosts($('#w-out'),r.posts,'', '일상');}catch(e){$('#w-out').innerHTML=`<div class="empty">${esc(e.message)}</div>`}$('#w-go').disabled=false;};
 
+// product rotation
+let rolled=null;
+$('#a-roll').onclick=async()=>{const r=await api('/api/rotation/next');rolled=r;$('#a-keyword').value=`${r.product} — ${r.situation}`;if(!$('#a-title').value)$('#a-title').value=r.product;$('#a-q').value=r.product;$('#a-roll-info').innerHTML=`${esc(r.product)} · 앵글: <b>${esc(r.situation)}</b> (${esc(r.situation_hint)}) · 남은 제품 ${r.remaining}/${r.total}`;toast('뽑았어요: '+r.product);};
 // affiliate kind seg
 let aKind='intro';$$('#a-kind button').forEach(b=>b.onclick=()=>{$$('#a-kind button').forEach(x=>x.classList.remove('on'));b.classList.add('on');aKind=b.dataset.v;['intro','reviews','exp'].forEach(k=>$('#a-kind-'+k).style.display=k===aKind?'':'none');});
 // affiliate
 $('#a-search').onclick=async()=>{const q=$('#a-q').value.trim();if(!q)return;$('#a-results').innerHTML='<span class="hint">검색 중…</span>';try{const items=await api('/api/coupang/search?keyword='+encodeURIComponent(q));$('#a-results').innerHTML=items.map(it=>`<span class="chip" onclick='pickProduct(${JSON.stringify(it).replace(/'/g,"&#39;")})'>${esc(it.title).slice(0,40)}<small>${esc(String(it.price))}원</small></span>`).join('')||'<span class="hint">결과 없음</span>'}catch(e){$('#a-results').innerHTML=`<span class="hint">${esc(e.message)}</span>`}};
 window.pickProduct=it=>{$('#a-title').value=it.title||'';$('#a-price').value=it.price?Number(it.price).toLocaleString()+'원':'';$('#a-url').value=it.url||'';$('#a-image').value=it.image||'';toast('상품 선택됨')};
-$('#a-go').onclick=async()=>{const kw=$('#a-keyword').value.trim(),url=$('#a-url').value.trim();if(!kw)return toast('상황(소재)을 적어주세요');if(!url)return toast('파트너스 링크를 넣어주세요');$('#a-go').disabled=true;$('#a-out').innerHTML='<div class="empty">쓰는 중…</div>';try{const r=await api('/api/generate',{method:'POST',body:JSON.stringify({keyword:kw,persona_id:$('#a-persona').value,mode:'basic',count:+$('#a-count').value,affiliate:true,experience:aKind==='exp'?$('#a-exp').value:'',reviews:aKind==='reviews'?$('#a-reviews').value:'',product:{title:$('#a-title').value,price:$('#a-price').value,url,image:$('#a-image').value}})});renderPosts($('#a-out'),r.posts,r.image_url,'제휴');}catch(e){$('#a-out').innerHTML=`<div class="empty">${esc(e.message)}</div>`}$('#a-go').disabled=false;};
+$('#a-go').onclick=async()=>{const kw=$('#a-keyword').value.trim(),url=$('#a-url').value.trim();if(!kw)return toast('상황(소재)을 적어주세요');if(!url)return toast('파트너스 링크를 넣어주세요');$('#a-go').disabled=true;$('#a-out').innerHTML='<div class="empty">쓰는 중…</div>';try{const r=await api('/api/generate',{method:'POST',body:JSON.stringify({keyword:kw,persona_id:$('#a-persona').value,mode:'basic',count:+$('#a-count').value,affiliate:true,experience:aKind==='exp'?$('#a-exp').value:'',reviews:aKind==='reviews'?$('#a-reviews').value:'',product:{title:$('#a-title').value,price:$('#a-price').value,url,image:$('#a-image').value}})});renderPosts($('#a-out'),r.posts,r.image_url,'제휴');if(rolled&&$('#a-keyword').value.startsWith(rolled.product)){api('/api/rotation/mark',{method:'POST',body:JSON.stringify({product:rolled.product})});}}catch(e){$('#a-out').innerHTML=`<div class="empty">${esc(e.message)}</div>`}$('#a-go').disabled=false;};
 
 // bench
 async function loadScraps(){const items=await api('/api/scraps');$('#b-count').textContent=items.length?`(${items.length})`:'';$('#b-list').innerHTML=items.length?items.map(it=>`<div class="scrap"><input type="checkbox" value="${it.id}"><div style="flex:1"><div class="t">${esc(it.text)}</div><div class="s">${esc(it.author||'')} · 좋아요 ${it.likes} 답글 ${it.replies} 리포스트 ${it.reposts} · <a href="#" onclick="delScrap('${it.id}');return false" style="color:var(--mute)">삭제</a></div></div><div class="score">${it.score}pt</div></div>`).join(''):'<div class="empty">아직 스크랩이 없어요.</div>';}
